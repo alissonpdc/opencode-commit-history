@@ -1,0 +1,53 @@
+{
+  "name": "opencode-git-history",
+  "version": "0.1.0",
+  "description": "OpenCode TUI plugin: current branch/worktree and the last 8 commits in the sidebar",
+  "license": "MIT",
+  "author": "alissonpdc",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alissonpdc/opencode-git-history.git"
+  },
+  "homepage": "https://github.com/alissonpdc/opencode-git-history#readme",
+  "bugs": "https://github.com/alissonpdc/opencode-git-history/issues",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "tui",
+    "git"
+  ],
+  "type": "module",
+  "exports": {
+    "./tui": "./src/tui.tsx"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opencode/plugin": "latest"
+  },
+  "peerDependencies": {
+    "@opencode/theme": "2.3.2",
+    "@opentui/core": ">=0.8.4",
+    "@opentui/solid": ">=0.8.4",
+    "solid-js": ">=1.9.0"
+  },
+  "peerDependenciesMeta": {
+    "@opencode/theme": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@opencode/theme": "^2.3.2",
+    "@opentui/core": "^0.8.4",
+    "@opentui/solid": "^0.8.4",
+    "@types/node": "^26.6.6",
+    "solid-js": ">=1.9.0",
+    "typescript": "^5",
+    "vitest": "^3"
+  }
+}
