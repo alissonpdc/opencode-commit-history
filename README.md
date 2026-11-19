@@ -43,9 +43,11 @@ globally.
 
 ## Refresh behavior
 
-The section re-reads the repository (debounced) when OpenCode reports branch
-changes, filesystem changes, or a finished session execution — plus a 15s
-safety-net poll for commits made outside OpenCode.
+Branch color flips within ~2s of working-tree changes: a lightweight poll
+(`branch` + `status --porcelain`) watches for dirty/clean transitions and
+branch switches, then triggers a full refresh. The full history also refreshes
+(debounced) on OpenCode events — branch changes, filesystem changes, finished
+session executions — plus a 15s safety-net poll for commits made elsewhere.
 
 A `Refresh git history sidebar` command is registered in the command palette
 (`ctrl+p`).
