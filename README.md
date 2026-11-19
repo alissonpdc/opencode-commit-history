@@ -33,12 +33,12 @@ Load it from GitHub through `cli.json` (the TUI-only plugin config):
 ```json title="~/.config/opencode/cli.json"
 {
   "plugins": [
-    "github:alissonpdc/opencode-git-history#v0.2.0"
+    "github:alissonpdc/opencode-git-history#v0.3.0"
   ]
 }
 ```
 
-Pin the tag (`#v0.2.0`) or omit it to track the default branch. Config changes
+Pin the tag (`#v0.3.0`) or omit it to track the default branch. Config changes
 apply without restarting OpenCode.
 
 ### Options
@@ -49,7 +49,7 @@ Pass plugin options with the object form:
 {
   "plugins": [
     {
-      "package": "github:alissonpdc/opencode-git-history#v0.2.0",
+      "package": "github:alissonpdc/opencode-git-history#v0.3.0",
       "options": {
         "timezone": "America/Sao_Paulo"
       }

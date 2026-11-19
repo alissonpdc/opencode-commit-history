@@ -1,6 +1,6 @@
 {
   "name": "opencode-git-history",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "OpenCode TUI plugin: current branch/worktree and the last 8 commits in the sidebar",
   "license": "MIT",
   "author": "alissonpdc",
