@@ -13,9 +13,9 @@ interface ExpandedState {
   expanded: boolean;
 }
 
-/** Inline colored span: the runtime reads style.fg/style.dim, but SpanProps types style as {} (upstream gap). */
-function FgSpan(props: { fg: RGBA; dim?: boolean; children?: string | string[] }) {
-  return <span style={{ fg: props.fg, dim: props.dim } as { fg?: RGBA; dim?: boolean }}>{props.children}</span>;
+/** Inline colored span: the runtime reads style.fg, but SpanProps types style as {} (upstream gap). */
+function FgSpan(props: { fg: RGBA; children?: string | string[] }) {
+  return <span style={{ fg: props.fg } as { fg?: RGBA }}>{props.children}</span>;
 }
 
 function BranchLine(props: { snapshot: GitSnapshot; expanded: boolean; onToggle: () => void }) {
@@ -53,7 +53,7 @@ export function GitSidebar(props: { snapshot: GitSnapshot | null }) {
               {(commit) => (
                 <box>
                   <text>
-                    <FgSpan fg={theme.text.base} dim> {formatCommitTime(commit.date)}</FgSpan>
+                    <FgSpan fg={theme.text.base}> {formatCommitTime(commit.date)}</FgSpan>
                     <FgSpan fg={SIDEBAR_COLORS.accent}> {commit.hash}</FgSpan>
                   </text>
                   <text attributes={TextAttributes.DIM} fg={theme.text.base}>

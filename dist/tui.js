@@ -216,8 +216,7 @@ function FgSpan(props) {
     var _el$ = _$createElement("span");
     _$insert(_el$, () => props.children);
     _$effect((_$p) => _$setProp(_el$, "style", {
-      fg: props.fg,
-      dim: props.dim
+      fg: props.fg
     }, _$p));
     return _el$;
   })();
@@ -300,7 +299,6 @@ function GitSidebar(props) {
                 get fg() {
                   return theme.text.base;
                 },
-                dim: true,
                 get children() {
                   return [" ", _$memo(() => formatCommitTime(commit.date))];
                 }

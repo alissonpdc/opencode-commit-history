@@ -8,7 +8,7 @@ session sidebar:
   HEAD hash when HEAD is detached.
 - Worktree label (`↪ worktree: <name>`, orange), only when the directory is a
   linked worktree — never shown for the main working tree.
-- The last 5 commits, newest first, each with dimmed commit time
+- The last 5 commits, newest first, each with white commit time
   (`dd/mm hh:mm`, local time), orange short hash and dimmed subject.
 
 Colors are fixed (orange `#FFA500`, red `#E5484D`, green `#3FB950`) so the
