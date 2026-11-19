@@ -187,6 +187,11 @@ function pad(value) {
   return String(value).padStart(2, "0");
 }
 
+// src/ui/chevron.ts
+function chevronGlyph(expanded) {
+  return expanded ? "\u25BE" : "\u25B8";
+}
+
 // src/ui/colors.ts
 import { RGBA } from "@opentui/core";
 var SIDEBAR_COLORS = {
@@ -219,8 +224,10 @@ function FgSpan(props) {
 function BranchLine(props) {
   const color = () => props.snapshot.dirty ? SIDEBAR_COLORS.pending : SIDEBAR_COLORS.synced;
   return (() => {
-    var _el$2 = _$createElement("text"), _el$3 = _$createTextNode(`\u2387 `);
+    var _el$2 = _$createElement("text"), _el$3 = _$createTextNode(` \u2387 `);
     _$insertNode(_el$2, _el$3);
+    _$setProp(_el$2, "onMouseUp", () => props.onToggle());
+    _$insert(_el$2, () => chevronGlyph(props.expanded), _el$3);
     _$insert(_el$2, (() => {
       var _c$ = _$memo(() => props.snapshot.branch === "");
       return () => _c$() ? "(detached)" : props.snapshot.branch;
@@ -238,7 +245,16 @@ function BranchLine(props) {
   })();
 }
 function GitSidebar(props) {
-  const theme = usePlugin().theme;
+  const context = usePlugin();
+  const theme = context.theme;
+  const [expanded, updateExpanded] = context.storage.store("expanded", {
+    initial: {
+      expanded: true
+    }
+  });
+  const toggle = () => void updateExpanded((draft) => {
+    draft.expanded = !draft.expanded;
+  });
   return _$createComponent(Show, {
     get when() {
       return props.snapshot;
@@ -248,7 +264,11 @@ function GitSidebar(props) {
       _$insert(_el$4, _$createComponent(BranchLine, {
         get snapshot() {
           return snapshot();
-        }
+        },
+        get expanded() {
+          return expanded.expanded;
+        },
+        onToggle: toggle
       }), null);
       _$insert(_el$4, _$createComponent(Show, {
         get when() {
@@ -262,42 +282,49 @@ function GitSidebar(props) {
           return _el$5;
         }
       }), null);
-      _$insert(_el$4, _$createComponent(For, {
-        get each() {
-          return snapshot().commits;
+      _$insert(_el$4, _$createComponent(Show, {
+        get when() {
+          return expanded.expanded;
         },
-        children: (commit) => (() => {
-          var _el$7 = _$createElement("box"), _el$8 = _$createElement("text"), _el$9 = _$createElement("text");
-          _$insertNode(_el$7, _el$8);
-          _$insertNode(_el$7, _el$9);
-          _$insert(_el$8, _$createComponent(FgSpan, {
-            get fg() {
-              return theme.text.base;
+        get children() {
+          return _$createComponent(For, {
+            get each() {
+              return snapshot().commits;
             },
-            get children() {
-              return [" ", _$memo(() => formatCommitTime(commit.date))];
-            }
-          }), null);
-          _$insert(_el$8, _$createComponent(FgSpan, {
-            get fg() {
-              return SIDEBAR_COLORS.accent;
-            },
-            get children() {
-              return [" ", _$memo(() => commit.hash)];
-            }
-          }), null);
-          _$insert(_el$9, () => truncateSubject(commit.subject, SUBJECT_MAX_WIDTH));
-          _$effect((_p$) => {
-            var _v$3 = TextAttributes.DIM, _v$4 = theme.text.base;
-            _v$3 !== _p$.e && (_p$.e = _$setProp(_el$9, "attributes", _v$3, _p$.e));
-            _v$4 !== _p$.t && (_p$.t = _$setProp(_el$9, "fg", _v$4, _p$.t));
-            return _p$;
-          }, {
-            e: undefined,
-            t: undefined
+            children: (commit) => (() => {
+              var _el$7 = _$createElement("box"), _el$8 = _$createElement("text"), _el$9 = _$createElement("text");
+              _$insertNode(_el$7, _el$8);
+              _$insertNode(_el$7, _el$9);
+              _$insert(_el$8, _$createComponent(FgSpan, {
+                get fg() {
+                  return theme.text.base;
+                },
+                get children() {
+                  return [" ", _$memo(() => formatCommitTime(commit.date))];
+                }
+              }), null);
+              _$insert(_el$8, _$createComponent(FgSpan, {
+                get fg() {
+                  return SIDEBAR_COLORS.accent;
+                },
+                get children() {
+                  return [" ", _$memo(() => commit.hash)];
+                }
+              }), null);
+              _$insert(_el$9, () => truncateSubject(commit.subject, SUBJECT_MAX_WIDTH));
+              _$effect((_p$) => {
+                var _v$3 = TextAttributes.DIM, _v$4 = theme.text.base;
+                _v$3 !== _p$.e && (_p$.e = _$setProp(_el$9, "attributes", _v$3, _p$.e));
+                _v$4 !== _p$.t && (_p$.t = _$setProp(_el$9, "fg", _v$4, _p$.t));
+                return _p$;
+              }, {
+                e: undefined,
+                t: undefined
+              });
+              return _el$7;
+            })()
           });
-          return _el$7;
-        })()
+        }
       }), null);
       return _el$4;
     })()

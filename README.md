@@ -14,8 +14,11 @@ session sidebar:
 Colors are fixed (orange `#FFA500`, red `#E5484D`, green `#3FB950`) so the
 section reads the same on every theme.
 
+Click the branch line (chevron `▾`/`▸`) to collapse or expand the commit
+list. The choice persists across TUI restarts.
+
 ```text
-⎇ main                       ← green when clean, red when dirty
+▾ ⎇ main                     ← green when clean, red when dirty; click to collapse
 ↪ worktree: feature-x        ← only inside a linked worktree
 18/11 09:41 a1b2c3d
 fix sidebar overflow
