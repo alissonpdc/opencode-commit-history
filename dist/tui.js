@@ -1,0 +1,275 @@
+// @bun
+// src/tui.tsx
+import { createComponent as _$createComponent2 } from "@opentui/solid";
+import { createSignal } from "solid-js";
+import { Plugin } from "@opencode/plugin/tui";
+
+// src/git/log-parser.ts
+var FIELD = "\x1F";
+var RECORD = "\x1E";
+function parseCommitLog(output, limit) {
+  const commits = [];
+  for (const record of output.split(RECORD)) {
+    const [hash = "", subject = "", date = ""] = record.split(FIELD).map((field) => field.trim());
+    if (hash === "" || subject === "" || date === "")
+      continue;
+    commits.push({ hash, subject, date });
+    if (commits.length === limit)
+      break;
+  }
+  return commits;
+}
+
+// src/git/worktree-resolver.ts
+import { basename, resolve } from "path";
+function resolveWorktree(paths) {
+  const rootPath = resolve(paths.rootPath);
+  const gitDir = resolve(rootPath, paths.gitDir);
+  const commonDir = resolve(rootPath, paths.commonDir);
+  return {
+    isLinked: gitDir !== commonDir,
+    rootPath,
+    label: basename(rootPath)
+  };
+}
+
+// src/git/snapshot.ts
+var SIDEBAR_COMMIT_LIMIT = 8;
+var LOG_ARGUMENTS = ["log", `-${SIDEBAR_COMMIT_LIMIT}`, "--pretty=format:%h%x1f%s%x1f%aI%x1e"];
+function createSnapshotReader(directory, runner) {
+  const run = async (args) => (await runner(args)).trim();
+  return { read: () => readSnapshot(run) };
+}
+async function readSnapshot(run) {
+  const rootPath = await tryRun(run, ["rev-parse", "--show-toplevel"]);
+  if (rootPath === null)
+    return null;
+  const gitDir = await run(["rev-parse", "--absolute-git-dir"]);
+  const commonDir = await run(["rev-parse", "--git-common-dir"]);
+  const branch = await run(["branch", "--show-current"]);
+  const commits = parseCommitLog(await tryRun(run, LOG_ARGUMENTS) ?? "", SIDEBAR_COMMIT_LIMIT);
+  return {
+    branch: branch === "" ? commits[0]?.hash ?? "" : branch,
+    detachedHead: branch === "",
+    worktree: resolveWorktree({ rootPath, gitDir, commonDir }),
+    commits
+  };
+}
+async function tryRun(run, args) {
+  try {
+    return (await run(args)).trim();
+  } catch {
+    return null;
+  }
+}
+
+// src/git/runner.ts
+import { execFile } from "child_process";
+var GIT_TIMEOUT_MS = 5000;
+var GIT_MAX_BUFFER_BYTES = 1024 * 1024;
+function createGitProcessRunner(directory) {
+  return async (args) => {
+    const command = ["git", ...args];
+    return new Promise((resolveOutput, rejectCommand) => {
+      execFile(command[0] ?? "git", command.slice(1), {
+        cwd: directory,
+        timeout: GIT_TIMEOUT_MS,
+        maxBuffer: GIT_MAX_BUFFER_BYTES,
+        windowsHide: true
+      }, (error, stdout, stderr) => {
+        if (error !== null) {
+          rejectCommand(new Error(`git ${args.join(" ")} failed: ${stderr.trim() || error.message}`));
+          return;
+        }
+        resolveOutput(stdout);
+      });
+    });
+  };
+}
+
+// src/refresh-scheduler.ts
+function createDebouncedAction(action, delayMs) {
+  let timer = null;
+  const schedule = () => {
+    if (timer !== null)
+      clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      action();
+    }, delayMs);
+  };
+  schedule.dispose = () => {
+    if (timer !== null)
+      clearTimeout(timer);
+    timer = null;
+  };
+  return schedule;
+}
+
+// src/ui/git-sidebar.tsx
+import { memo as _$memo } from "@opentui/solid";
+import { createTextNode as _$createTextNode } from "@opentui/solid";
+import { insertNode as _$insertNode } from "@opentui/solid";
+import { createComponent as _$createComponent } from "@opentui/solid";
+import { setProp as _$setProp } from "@opentui/solid";
+import { effect as _$effect } from "@opentui/solid";
+import { insert as _$insert } from "@opentui/solid";
+import { createElement as _$createElement } from "@opentui/solid";
+import { For, Show } from "solid-js";
+import { usePlugin } from "@opencode/plugin/tui";
+
+// src/git/date-format.ts
+function formatCommitTime(isoDate) {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime()))
+    return isoDate;
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  return `${day}/${month} ${hours}:${minutes}`;
+}
+function pad(value) {
+  return String(value).padStart(2, "0");
+}
+
+// src/ui/truncate-subject.ts
+var ELLIPSIS = "\u2026";
+function truncateSubject(subject, maxWidth) {
+  if (subject.length <= maxWidth)
+    return subject;
+  const keep = Math.max(maxWidth - ELLIPSIS.length, 0);
+  return subject.slice(0, keep) + ELLIPSIS;
+}
+
+// src/ui/git-sidebar.tsx
+var SUBJECT_MAX_WIDTH = 40;
+function FgSpan(props) {
+  return (() => {
+    var _el$ = _$createElement("span");
+    _$insert(_el$, () => props.children);
+    _$effect((_$p) => _$setProp(_el$, "style", {
+      fg: props.fg
+    }, _$p));
+    return _el$;
+  })();
+}
+function GitSidebar(props) {
+  const theme = usePlugin().theme;
+  return _$createComponent(Show, {
+    get when() {
+      return props.snapshot;
+    },
+    children: (snapshot) => (() => {
+      var _el$2 = _$createElement("box"), _el$3 = _$createElement("text"), _el$5 = _$createElement("text"), _el$6 = _$createTextNode(`\u2387 `);
+      _$insertNode(_el$2, _el$3);
+      _$insertNode(_el$2, _el$5);
+      _$insertNode(_el$3, _$createTextNode(`GIT`));
+      _$insertNode(_el$5, _el$6);
+      _$insert(_el$5, _$createComponent(FgSpan, {
+        get fg() {
+          return theme.hue.accent[500];
+        },
+        get children() {
+          return _$memo(() => snapshot().branch === "")() ? "(detached)" : snapshot().branch;
+        }
+      }), null);
+      _$insert(_el$2, _$createComponent(Show, {
+        get when() {
+          return snapshot().worktree.isLinked;
+        },
+        get children() {
+          var _el$7 = _$createElement("text"), _el$8 = _$createTextNode(`\u21AA worktree: `);
+          _$insertNode(_el$7, _el$8);
+          _$insert(_el$7, () => snapshot().worktree.label, null);
+          _$effect((_$p) => _$setProp(_el$7, "fg", theme.text.muted, _$p));
+          return _el$7;
+        }
+      }), null);
+      _$insert(_el$2, _$createComponent(For, {
+        get each() {
+          return snapshot().commits;
+        },
+        children: (commit) => (() => {
+          var _el$9 = _$createElement("box"), _el$0 = _$createElement("text"), _el$1 = _$createElement("span"), _el$10 = _$createTextNode(` `), _el$11 = _$createElement("text");
+          _$insertNode(_el$9, _el$0);
+          _$insertNode(_el$9, _el$11);
+          _$insertNode(_el$0, _el$1);
+          _$insert(_el$0, _$createComponent(FgSpan, {
+            get fg() {
+              return theme.hue.accent[500];
+            },
+            get children() {
+              return commit.hash;
+            }
+          }), _el$1);
+          _$insertNode(_el$1, _el$10);
+          _$insert(_el$1, () => formatCommitTime(commit.date), null);
+          _$insert(_el$11, () => truncateSubject(commit.subject, SUBJECT_MAX_WIDTH));
+          _$effect((_p$) => {
+            var _v$ = {
+              fg: theme.text.muted
+            }, _v$2 = theme.text.base;
+            _v$ !== _p$.e && (_p$.e = _$setProp(_el$1, "style", _v$, _p$.e));
+            _v$2 !== _p$.t && (_p$.t = _$setProp(_el$11, "fg", _v$2, _p$.t));
+            return _p$;
+          }, {
+            e: undefined,
+            t: undefined
+          });
+          return _el$9;
+        })()
+      }), null);
+      _$effect((_$p) => _$setProp(_el$3, "fg", theme.text.faint, _$p));
+      return _el$2;
+    })()
+  });
+}
+
+// src/tui.tsx
+var REFRESH_DEBOUNCE_MS = 500;
+var POLL_INTERVAL_MS = 15000;
+var PLUGIN_COMMAND_GROUP = "Git history";
+var REFRESH_EVENT_TYPES = ["vcs.branch.updated", "filesystem.changed", "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"];
+var tui_default = Plugin.define({
+  id: "opencode-git-history",
+  setup(context) {
+    const directory = (context.location ?? context.data.location.default()).directory;
+    const reader = createSnapshotReader(directory, createGitProcessRunner(directory));
+    const [snapshot, setSnapshot] = createSignal(null);
+    const refresh = async () => {
+      setSnapshot(await reader.read());
+    };
+    const scheduleRefresh = createDebouncedAction(refresh, REFRESH_DEBOUNCE_MS);
+    refresh();
+    const stopEvents = REFRESH_EVENT_TYPES.map((type) => context.data.on(type, scheduleRefresh));
+    const poll = setInterval(scheduleRefresh, POLL_INTERVAL_MS);
+    context.keymap.layer(() => ({
+      mode: "global",
+      commands: [{
+        id: "opencode-git-history.refresh",
+        title: "Refresh git history sidebar",
+        group: PLUGIN_COMMAND_GROUP,
+        palette: true,
+        run: () => void refresh()
+      }]
+    }));
+    const unregisterSlot = context.ui.slot({
+      append: "sidebar.content",
+      render: () => _$createComponent2(GitSidebar, {
+        get snapshot() {
+          return snapshot();
+        }
+      })
+    });
+    return () => {
+      unregisterSlot();
+      stopEvents.forEach((stop) => stop());
+      clearInterval(poll);
+      scheduleRefresh.dispose();
+    };
+  }
+});
+export {
+  tui_default as default
+};

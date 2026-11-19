@@ -1,6 +1,6 @@
 {
   "name": "opencode-git-history",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "OpenCode TUI plugin: current branch/worktree and the last 8 commits in the sidebar",
   "license": "MIT",
   "author": "alissonpdc",
@@ -18,15 +18,17 @@
   ],
   "type": "module",
   "exports": {
-    "./tui": "./src/tui.tsx"
+    "./tui": "./dist/tui.js"
   },
   "files": [
+    "dist",
     "src",
     "tsconfig.json"
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:dist": "bun run script/build.mjs"
   },
   "dependencies": {
     "@opencode/plugin": "latest"
