@@ -44,3 +44,21 @@ async function tryRun(
     return null;
   }
 }
+
+export interface StatusReader {
+  /** Cheap branch + dirty state for fast polling; null when git fails. */
+  read(): Promise<{ branch: string; dirty: boolean } | null>;
+}
+
+export function createStatusReader(directory: string, runner: GitCommandRunner): StatusReader {
+  const run = async (args: readonly string[]): Promise<string> => (await runner(args)).trim();
+  return {
+    read: async () => {
+      const branch = await tryRun(run, ["branch", "--show-current"]);
+      if (branch === null) return null;
+      const status = await tryRun(run, ["status", "--porcelain"]);
+      if (status === null) return null;
+      return { branch, dirty: status !== "" };
+    },
+  };
+}

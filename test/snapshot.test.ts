@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSnapshotReader } from "../src/git/snapshot";
+import { createSnapshotReader, createStatusReader } from "../src/git/snapshot";
 import type { GitCommandRunner } from "../src/git/types";
 
 /** Named fake: canned git stdout per command, records every invocation. */
@@ -64,6 +64,24 @@ describe("createSnapshotReader", () => {
     const snapshot = await createSnapshotReader("/repo", runner.run).read();
 
     expect(snapshot?.dirty).toBe(true);
+  });
+
+  it("reads a lightweight status for fast polling", async () => {
+    const runner = cannedRunner();
+    runner.outputs["status --porcelain"] = " M src/tui.tsx\n";
+
+    const status = await createStatusReader("/repo", runner.run).read();
+
+    expect(status).toEqual({ branch: "main", dirty: true });
+  });
+
+  it("returns null from lightweight status when git fails", async () => {
+    const runner = cannedRunner();
+    runner.failingCommand = "branch --show-current";
+
+    const status = await createStatusReader("/repo", runner.run).read();
+
+    expect(status).toBeNull();
   });
 
   it("marks linked worktrees by comparing git dir with common dir", async () => {

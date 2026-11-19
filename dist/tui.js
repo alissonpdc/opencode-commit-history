@@ -64,6 +64,20 @@ async function tryRun(run, args) {
     return null;
   }
 }
+function createStatusReader(directory, runner) {
+  const run = async (args) => (await runner(args)).trim();
+  return {
+    read: async () => {
+      const branch = await tryRun(run, ["branch", "--show-current"]);
+      if (branch === null)
+        return null;
+      const status = await tryRun(run, ["status", "--porcelain"]);
+      if (status === null)
+        return null;
+      return { branch, dirty: status !== "" };
+    }
+  };
+}
 
 // src/git/runner.ts
 import { execFile } from "child_process";
@@ -86,6 +100,43 @@ function createGitProcessRunner(directory) {
         resolveOutput(stdout);
       });
     });
+  };
+}
+
+// src/light-poll.ts
+function createLightPoll(options) {
+  const { intervalMs, read, isEqual, onChange } = options;
+  let timer = null;
+  let baseline = null;
+  let disposed = false;
+  const tick = async () => {
+    let next;
+    try {
+      next = await read();
+    } catch {
+      return;
+    }
+    if (disposed || next === null)
+      return;
+    const first = baseline === null;
+    const previous = baseline;
+    baseline = next;
+    if (!first && previous !== null && !isEqual(previous, next))
+      onChange(next);
+  };
+  return {
+    start() {
+      if (timer !== null)
+        return;
+      tick();
+      timer = setInterval(() => void tick(), intervalMs);
+    },
+    dispose() {
+      disposed = true;
+      if (timer !== null)
+        clearInterval(timer);
+      timer = null;
+    }
   };
 }
 
@@ -255,7 +306,8 @@ function GitSidebar(props) {
 
 // src/tui.tsx
 var REFRESH_DEBOUNCE_MS = 500;
-var POLL_INTERVAL_MS = 15000;
+var STATUS_POLL_MS = 2000;
+var FULL_REFRESH_MS = 15000;
 var PLUGIN_COMMAND_GROUP = "Git history";
 var REFRESH_EVENT_TYPES = ["vcs.branch.updated", "filesystem.changed", "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"];
 var tui_default = Plugin.define({
@@ -270,7 +322,14 @@ var tui_default = Plugin.define({
     const scheduleRefresh = createDebouncedAction(refresh, REFRESH_DEBOUNCE_MS);
     refresh();
     const stopEvents = REFRESH_EVENT_TYPES.map((type) => context.data.on(type, scheduleRefresh));
-    const poll = setInterval(scheduleRefresh, POLL_INTERVAL_MS);
+    const fullPoll = setInterval(scheduleRefresh, FULL_REFRESH_MS);
+    const statusPoll = createLightPoll({
+      intervalMs: STATUS_POLL_MS,
+      read: createStatusReader(directory, createGitProcessRunner(directory)).read,
+      isEqual: (a, b) => a.branch === b.branch && a.dirty === b.dirty,
+      onChange: () => void refresh()
+    });
+    statusPoll.start();
     context.keymap.layer(() => ({
       mode: "global",
       commands: [{
@@ -292,7 +351,8 @@ var tui_default = Plugin.define({
     return () => {
       unregisterSlot();
       stopEvents.forEach((stop) => stop());
-      clearInterval(poll);
+      clearInterval(fullPoll);
+      statusPoll.dispose();
       scheduleRefresh.dispose();
     };
   }

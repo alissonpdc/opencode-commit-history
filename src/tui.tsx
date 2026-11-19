@@ -1,13 +1,15 @@
 import { createSignal } from "solid-js";
 import { Plugin } from "@opencode/plugin/tui";
-import { createSnapshotReader } from "./git/snapshot";
+import { createSnapshotReader, createStatusReader } from "./git/snapshot";
 import { createGitProcessRunner } from "./git/runner";
 import type { GitSnapshot } from "./git/types";
+import { createLightPoll } from "./light-poll";
 import { createDebouncedAction } from "./refresh-scheduler";
 import { GitSidebar } from "./ui/git-sidebar";
 
 const REFRESH_DEBOUNCE_MS = 500;
-const POLL_INTERVAL_MS = 15_000;
+const STATUS_POLL_MS = 2_000;
+const FULL_REFRESH_MS = 15_000;
 const PLUGIN_COMMAND_GROUP = "Git history";
 
 /** Server events worth re-reading the repository state for. */
@@ -33,7 +35,16 @@ export default Plugin.define({
     void refresh();
 
     const stopEvents = REFRESH_EVENT_TYPES.map((type) => context.data.on(type, scheduleRefresh));
-    const poll = setInterval(scheduleRefresh, POLL_INTERVAL_MS);
+    const fullPoll = setInterval(scheduleRefresh, FULL_REFRESH_MS);
+
+    // Fast status loop: flips branch color within ~2s of working-tree changes.
+    const statusPoll = createLightPoll({
+      intervalMs: STATUS_POLL_MS,
+      read: createStatusReader(directory, createGitProcessRunner(directory)).read,
+      isEqual: (a, b) => a.branch === b.branch && a.dirty === b.dirty,
+      onChange: () => void refresh(),
+    });
+    statusPoll.start();
 
     context.keymap.layer(() => ({
       mode: "global",
@@ -56,7 +67,8 @@ export default Plugin.define({
     return () => {
       unregisterSlot();
       stopEvents.forEach((stop) => stop());
-      clearInterval(poll);
+      clearInterval(fullPoll);
+      statusPoll.dispose();
       scheduleRefresh.dispose();
     };
   },
