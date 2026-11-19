@@ -7,7 +7,7 @@ class FakeGitRunner {
   readonly calls: string[][] = [];
   failingCommand: string | null = null;
 
-  constructor(private readonly outputs: Record<string, string>) {}
+  constructor(readonly outputs: Record<string, string>) {}
 
   /** Arrow property keeps `this` bound when the method is passed around. */
   readonly run = async (args: readonly string[]): Promise<string> => {
@@ -30,7 +30,8 @@ function cannedRunner(): FakeGitRunner {
     "rev-parse --absolute-git-dir": "/repo/.git\n",
     "rev-parse --git-common-dir": ".git\n",
     "branch --show-current": "main\n",
-    "log -8 --pretty=format:%h%x1f%s%x1f%aI%x1e":
+    "status --porcelain": "",
+    "log -5 --pretty=format:%h%x1f%s%x1f%aI%x1e":
       "a1b2c3d\x1ffix sidebar\x1f2026-11-18T09:41:00Z\x1e" +
       "e4f5a6b\x1fadd tests\x1f2026-11-17T18:02:00Z\x1e",
   });
@@ -46,6 +47,7 @@ describe("createSnapshotReader", () => {
     expect(snapshot).toEqual({
       branch: "main",
       detachedHead: false,
+      dirty: false,
       worktree: { isLinked: false, rootPath: "/repo", label: "repo" },
       commits: [
         { hash: "a1b2c3d", subject: "fix sidebar", date: "2026-11-18T09:41:00Z" },
@@ -55,13 +57,23 @@ describe("createSnapshotReader", () => {
     expect(runner.calls[0]).toEqual(REPO_ARGUMENTS);
   });
 
+  it("marks pending changes via status --porcelain", async () => {
+    const runner = cannedRunner();
+    runner.outputs["status --porcelain"] = " M src/tui.tsx\n";
+
+    const snapshot = await createSnapshotReader("/repo", runner.run).read();
+
+    expect(snapshot?.dirty).toBe(true);
+  });
+
   it("marks linked worktrees by comparing git dir with common dir", async () => {
     const runner = new FakeGitRunner({
       "rev-parse --show-toplevel": "/repo/worktrees/feature-x\n",
       "rev-parse --absolute-git-dir": "/repo/.git/worktrees/feature-x\n",
       "rev-parse --git-common-dir": ".git\n",
       "branch --show-current": "feature-x\n",
-      "log -8 --pretty=format:%h%x1f%s%x1f%aI%x1e": "a1b2c3d\x1fwip\x1f2026-11-18T09:41:00Z\x1e",
+    "status --porcelain": "",
+      "log -5 --pretty=format:%h%x1f%s%x1f%aI%x1e": "a1b2c3d\x1fwip\x1f2026-11-18T09:41:00Z\x1e",
     });
 
     const snapshot = await createSnapshotReader("/repo/worktrees/feature-x", runner.run).read();
@@ -84,7 +96,7 @@ describe("createSnapshotReader", () => {
 
   it("keeps the branch visible when the repository has no commits yet", async () => {
     const runner = cannedRunner();
-    runner.failingCommand = "log -8 --pretty=format:%h%x1f%s%x1f%aI%x1e";
+    runner.failingCommand = "log -5 --pretty=format:%h%x1f%s%x1f%aI%x1e";
 
     const snapshot = await createSnapshotReader("/repo", runner.run).read();
 
@@ -98,7 +110,8 @@ describe("createSnapshotReader", () => {
       "rev-parse --absolute-git-dir": "/repo/.git\n",
       "rev-parse --git-common-dir": ".git\n",
       "branch --show-current": "\n",
-      "log -8 --pretty=format:%h%x1f%s%x1f%aI%x1e": "a1b2c3d\x1fwip\x1f2026-11-18T09:41:00Z\x1e",
+    "status --porcelain": "",
+      "log -5 --pretty=format:%h%x1f%s%x1f%aI%x1e": "a1b2c3d\x1fwip\x1f2026-11-18T09:41:00Z\x1e",
     });
 
     const snapshot = await createSnapshotReader("/repo", runner.run).read();

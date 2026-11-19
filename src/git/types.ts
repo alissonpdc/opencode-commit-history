@@ -21,6 +21,8 @@ export interface GitSnapshot {
   /** Current branch name; empty when HEAD is detached. */
   readonly branch: string;
   readonly detachedHead: boolean;
+  /** True when `git status --porcelain` reports uncommitted changes. */
+  readonly dirty: boolean;
   readonly worktree: WorktreeState;
   readonly commits: readonly CommitRecord[];
 }

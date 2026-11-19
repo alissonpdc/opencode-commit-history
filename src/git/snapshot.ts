@@ -2,7 +2,7 @@ import { parseCommitLog } from "./log-parser";
 import { resolveWorktree } from "./worktree-resolver";
 import type { GitCommandRunner, GitSnapshot } from "./types";
 
-export const SIDEBAR_COMMIT_LIMIT = 8;
+export const SIDEBAR_COMMIT_LIMIT = 5;
 
 const LOG_ARGUMENTS = ["log", `-${SIDEBAR_COMMIT_LIMIT}`, "--pretty=format:%h%x1f%s%x1f%aI%x1e"];
 
@@ -22,10 +22,12 @@ async function readSnapshot(run: (args: readonly string[]) => Promise<string>): 
   const gitDir = await run(["rev-parse", "--absolute-git-dir"]);
   const commonDir = await run(["rev-parse", "--git-common-dir"]);
   const branch = await run(["branch", "--show-current"]);
+  const status = await run(["status", "--porcelain"]);
   const commits = parseCommitLog((await tryRun(run, LOG_ARGUMENTS)) ?? "", SIDEBAR_COMMIT_LIMIT);
   return {
     branch: branch === "" ? (commits[0]?.hash ?? "") : branch,
     detachedHead: branch === "",
+    dirty: status !== "",
     worktree: resolveWorktree({ rootPath, gitDir, commonDir }),
     commits,
   };

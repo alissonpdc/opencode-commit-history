@@ -34,7 +34,7 @@ function resolveWorktree(paths) {
 }
 
 // src/git/snapshot.ts
-var SIDEBAR_COMMIT_LIMIT = 8;
+var SIDEBAR_COMMIT_LIMIT = 5;
 var LOG_ARGUMENTS = ["log", `-${SIDEBAR_COMMIT_LIMIT}`, "--pretty=format:%h%x1f%s%x1f%aI%x1e"];
 function createSnapshotReader(directory, runner) {
   const run = async (args) => (await runner(args)).trim();
@@ -47,10 +47,12 @@ async function readSnapshot(run) {
   const gitDir = await run(["rev-parse", "--absolute-git-dir"]);
   const commonDir = await run(["rev-parse", "--git-common-dir"]);
   const branch = await run(["branch", "--show-current"]);
+  const status = await run(["status", "--porcelain"]);
   const commits = parseCommitLog(await tryRun(run, LOG_ARGUMENTS) ?? "", SIDEBAR_COMMIT_LIMIT);
   return {
     branch: branch === "" ? commits[0]?.hash ?? "" : branch,
     detachedHead: branch === "",
+    dirty: status !== "",
     worktree: resolveWorktree({ rootPath, gitDir, commonDir }),
     commits
   };
@@ -107,15 +109,16 @@ function createDebouncedAction(action, delayMs) {
 }
 
 // src/ui/git-sidebar.tsx
-import { memo as _$memo } from "@opentui/solid";
+import { createComponent as _$createComponent } from "@opentui/solid";
 import { createTextNode as _$createTextNode } from "@opentui/solid";
 import { insertNode as _$insertNode } from "@opentui/solid";
-import { createComponent as _$createComponent } from "@opentui/solid";
+import { memo as _$memo } from "@opentui/solid";
 import { setProp as _$setProp } from "@opentui/solid";
 import { effect as _$effect } from "@opentui/solid";
 import { insert as _$insert } from "@opentui/solid";
 import { createElement as _$createElement } from "@opentui/solid";
 import { For, Show } from "solid-js";
+import { TextAttributes } from "@opentui/core";
 import { usePlugin } from "@opencode/plugin/tui";
 
 // src/git/date-format.ts
@@ -133,6 +136,14 @@ function pad(value) {
   return String(value).padStart(2, "0");
 }
 
+// src/ui/colors.ts
+import { RGBA } from "@opentui/core";
+var SIDEBAR_COLORS = {
+  accent: RGBA.fromHex("#FFA500"),
+  pending: RGBA.fromHex("#E5484D"),
+  synced: RGBA.fromHex("#3FB950")
+};
+
 // src/ui/truncate-subject.ts
 var ELLIPSIS = "\u2026";
 function truncateSubject(subject, maxWidth) {
@@ -143,7 +154,7 @@ function truncateSubject(subject, maxWidth) {
 }
 
 // src/ui/git-sidebar.tsx
-var SUBJECT_MAX_WIDTH = 40;
+var SUBJECT_MAX_WIDTH = 46;
 function FgSpan(props) {
   return (() => {
     var _el$ = _$createElement("span");
@@ -154,6 +165,27 @@ function FgSpan(props) {
     return _el$;
   })();
 }
+function BranchLine(props) {
+  const color = () => props.snapshot.dirty ? SIDEBAR_COLORS.pending : SIDEBAR_COLORS.synced;
+  return (() => {
+    var _el$2 = _$createElement("text"), _el$3 = _$createTextNode(`\u2387 `);
+    _$insertNode(_el$2, _el$3);
+    _$insert(_el$2, (() => {
+      var _c$ = _$memo(() => props.snapshot.branch === "");
+      return () => _c$() ? "(detached)" : props.snapshot.branch;
+    })(), null);
+    _$effect((_p$) => {
+      var _v$ = TextAttributes.BOLD, _v$2 = color();
+      _v$ !== _p$.e && (_p$.e = _$setProp(_el$2, "attributes", _v$, _p$.e));
+      _v$2 !== _p$.t && (_p$.t = _$setProp(_el$2, "fg", _v$2, _p$.t));
+      return _p$;
+    }, {
+      e: undefined,
+      t: undefined
+    });
+    return _el$2;
+  })();
+}
 function GitSidebar(props) {
   const theme = usePlugin().theme;
   return _$createComponent(Show, {
@@ -161,67 +193,62 @@ function GitSidebar(props) {
       return props.snapshot;
     },
     children: (snapshot) => (() => {
-      var _el$2 = _$createElement("box"), _el$3 = _$createElement("text"), _el$5 = _$createElement("text"), _el$6 = _$createTextNode(`\u2387 `);
-      _$insertNode(_el$2, _el$3);
-      _$insertNode(_el$2, _el$5);
-      _$insertNode(_el$3, _$createTextNode(`GIT`));
-      _$insertNode(_el$5, _el$6);
-      _$insert(_el$5, _$createComponent(FgSpan, {
-        get fg() {
-          return theme.hue.accent[500];
-        },
-        get children() {
-          return _$memo(() => snapshot().branch === "")() ? "(detached)" : snapshot().branch;
+      var _el$4 = _$createElement("box");
+      _$insert(_el$4, _$createComponent(BranchLine, {
+        get snapshot() {
+          return snapshot();
         }
       }), null);
-      _$insert(_el$2, _$createComponent(Show, {
+      _$insert(_el$4, _$createComponent(Show, {
         get when() {
           return snapshot().worktree.isLinked;
         },
         get children() {
-          var _el$7 = _$createElement("text"), _el$8 = _$createTextNode(`\u21AA worktree: `);
-          _$insertNode(_el$7, _el$8);
-          _$insert(_el$7, () => snapshot().worktree.label, null);
-          _$effect((_$p) => _$setProp(_el$7, "fg", theme.text.muted, _$p));
-          return _el$7;
+          var _el$5 = _$createElement("text"), _el$6 = _$createTextNode(`\u21AA worktree: `);
+          _$insertNode(_el$5, _el$6);
+          _$insert(_el$5, () => snapshot().worktree.label, null);
+          _$effect((_$p) => _$setProp(_el$5, "fg", SIDEBAR_COLORS.accent, _$p));
+          return _el$5;
         }
       }), null);
-      _$insert(_el$2, _$createComponent(For, {
+      _$insert(_el$4, _$createComponent(For, {
         get each() {
           return snapshot().commits;
         },
         children: (commit) => (() => {
-          var _el$9 = _$createElement("box"), _el$0 = _$createElement("text"), _el$1 = _$createElement("span"), _el$10 = _$createTextNode(` `), _el$11 = _$createElement("text");
-          _$insertNode(_el$9, _el$0);
-          _$insertNode(_el$9, _el$11);
-          _$insertNode(_el$0, _el$1);
-          _$insert(_el$0, _$createComponent(FgSpan, {
+          var _el$7 = _$createElement("box"), _el$8 = _$createElement("text"), _el$9 = _$createElement("text");
+          _$insertNode(_el$7, _el$8);
+          _$insertNode(_el$7, _el$9);
+          _$insert(_el$8, _$createComponent(FgSpan, {
             get fg() {
-              return theme.hue.accent[500];
+              return theme.text.base;
             },
             get children() {
-              return commit.hash;
+              return [" ", _$memo(() => formatCommitTime(commit.date))];
             }
-          }), _el$1);
-          _$insertNode(_el$1, _el$10);
-          _$insert(_el$1, () => formatCommitTime(commit.date), null);
-          _$insert(_el$11, () => truncateSubject(commit.subject, SUBJECT_MAX_WIDTH));
+          }), null);
+          _$insert(_el$8, _$createComponent(FgSpan, {
+            get fg() {
+              return SIDEBAR_COLORS.accent;
+            },
+            get children() {
+              return [" ", _$memo(() => commit.hash)];
+            }
+          }), null);
+          _$insert(_el$9, () => truncateSubject(commit.subject, SUBJECT_MAX_WIDTH));
           _$effect((_p$) => {
-            var _v$ = {
-              fg: theme.text.muted
-            }, _v$2 = theme.text.base;
-            _v$ !== _p$.e && (_p$.e = _$setProp(_el$1, "style", _v$, _p$.e));
-            _v$2 !== _p$.t && (_p$.t = _$setProp(_el$11, "fg", _v$2, _p$.t));
+            var _v$3 = TextAttributes.DIM, _v$4 = theme.text.base;
+            _v$3 !== _p$.e && (_p$.e = _$setProp(_el$9, "attributes", _v$3, _p$.e));
+            _v$4 !== _p$.t && (_p$.t = _$setProp(_el$9, "fg", _v$4, _p$.t));
             return _p$;
           }, {
             e: undefined,
             t: undefined
           });
-          return _el$9;
+          return _el$7;
         })()
       }), null);
-      _$effect((_$p) => _$setProp(_el$3, "fg", theme.text.faint, _$p));
-      return _el$2;
+      return _el$4;
     })()
   });
 }

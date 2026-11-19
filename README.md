@@ -3,20 +3,23 @@
 An [OpenCode](https://opencode.ai) TUI plugin that shows a **Git** section in the
 session sidebar:
 
-- Current branch name (`⎇ main`), falling back to the short HEAD hash when HEAD
-  is detached.
-- Worktree label (`↪ worktree: <name>`), only when the directory is a linked
-  worktree — never shown for the main working tree.
-- The last 8 commits, newest first, each with short hash, commit time
-  (`dd/mm hh:mm`, local time) and subject.
+- Current branch name (`⎇ main`, bold), colored by working-tree status: green
+  when clean, red when there are uncommitted changes. Falls back to the short
+  HEAD hash when HEAD is detached.
+- Worktree label (`↪ worktree: <name>`, orange), only when the directory is a
+  linked worktree — never shown for the main working tree.
+- The last 5 commits, newest first, each with white commit time
+  (`dd/mm hh:mm`, local time), orange short hash and dimmed subject.
+
+Colors are fixed (orange `#FFA500`, red `#E5484D`, green `#3FB950`) so the
+section reads the same on every theme.
 
 ```text
-GIT
-⎇ main
+⎇ main                       ← green when clean, red when dirty
 ↪ worktree: feature-x        ← only inside a linked worktree
-a1b2c3d 18/11 09:41
+18/11 09:41 a1b2c3d
 fix sidebar overflow
-e4f5a6b 17/11 18:02
+17/11 18:02 e4f5a6b
 add parser tests
 ```
 
