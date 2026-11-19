@@ -27,7 +27,7 @@ Load it from GitHub through `cli.json` (the TUI-only plugin config):
 ```json title="~/.config/opencode/cli.json"
 {
   "plugins": [
-    "github:alissonpdc/opencode-git-history#v0.1.0"
+    "github:alissonpdc/opencode-git-history#v0.2.0"
   ]
 }
 ```
@@ -49,10 +49,14 @@ A `Refresh git history sidebar` command is registered in the command palette
 
 ## Development
 
+Requires [Bun](https://bun.com) to prebuild the TUI part (`dist/tui.js`, the
+entrypoint npm/git installs load).
+
 ```sh
 npm install
-npm test       # vitest: unit + real-git integration tests
+npm test          # vitest: unit + real-git integration tests
 npm run typecheck
+bun run build:dist
 ```
 
 Layout:
