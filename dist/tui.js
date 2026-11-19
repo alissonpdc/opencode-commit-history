@@ -173,10 +173,29 @@ import { TextAttributes } from "@opentui/core";
 import { usePlugin } from "@opencode/plugin/tui";
 
 // src/git/date-format.ts
-function formatCommitTime(isoDate) {
-  const date = new Date(isoDate);
-  if (Number.isNaN(date.getTime()))
-    return isoDate;
+var formatterCache = new Map;
+function getTimeFormatter(timeZone) {
+  if (timeZone === undefined)
+    return null;
+  if (!formatterCache.has(timeZone)) {
+    let formatter = null;
+    try {
+      formatter = new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23"
+      });
+    } catch {
+      formatter = null;
+    }
+    formatterCache.set(timeZone, formatter);
+  }
+  return formatterCache.get(timeZone) ?? null;
+}
+function localFormat(date) {
   const day = pad(date.getDate());
   const month = pad(date.getMonth() + 1);
   const hours = pad(date.getHours());
@@ -185,6 +204,17 @@ function formatCommitTime(isoDate) {
 }
 function pad(value) {
   return String(value).padStart(2, "0");
+}
+function formatCommitTime(isoDate, timeZone) {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime()))
+    return isoDate;
+  const formatter = getTimeFormatter(timeZone);
+  if (formatter === null)
+    return localFormat(date);
+  const parts = formatter.formatToParts(date);
+  const value = (type) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("day")}/${value("month")} ${value("hour")}:${value("minute")}`;
 }
 
 // src/ui/chevron.ts
@@ -244,6 +274,28 @@ function BranchLine(props) {
     return _el$2;
   })();
 }
+function CommitLine(props) {
+  return (() => {
+    var _el$4 = _$createElement("text");
+    _$insert(_el$4, _$createComponent(FgSpan, {
+      get fg() {
+        return props.white;
+      },
+      get children() {
+        return [" ", _$memo(() => formatCommitTime(props.date, props.timeZone))];
+      }
+    }), null);
+    _$insert(_el$4, _$createComponent(FgSpan, {
+      get fg() {
+        return props.accent;
+      },
+      get children() {
+        return [" ", _$memo(() => props.hash)];
+      }
+    }), null);
+    return _el$4;
+  })();
+}
 function GitSidebar(props) {
   const context = usePlugin();
   const theme = context.theme;
@@ -260,8 +312,8 @@ function GitSidebar(props) {
       return props.snapshot;
     },
     children: (snapshot) => (() => {
-      var _el$4 = _$createElement("box");
-      _$insert(_el$4, _$createComponent(BranchLine, {
+      var _el$5 = _$createElement("box");
+      _$insert(_el$5, _$createComponent(BranchLine, {
         get snapshot() {
           return snapshot();
         },
@@ -270,19 +322,19 @@ function GitSidebar(props) {
         },
         onToggle: toggle
       }), null);
-      _$insert(_el$4, _$createComponent(Show, {
+      _$insert(_el$5, _$createComponent(Show, {
         get when() {
           return snapshot().worktree.isLinked;
         },
         get children() {
-          var _el$5 = _$createElement("text"), _el$6 = _$createTextNode(`\u21AA worktree: `);
-          _$insertNode(_el$5, _el$6);
-          _$insert(_el$5, () => snapshot().worktree.label, null);
-          _$effect((_$p) => _$setProp(_el$5, "fg", SIDEBAR_COLORS.accent, _$p));
-          return _el$5;
+          var _el$6 = _$createElement("text"), _el$7 = _$createTextNode(`\u21AA worktree: `);
+          _$insertNode(_el$6, _el$7);
+          _$insert(_el$6, () => snapshot().worktree.label, null);
+          _$effect((_$p) => _$setProp(_el$6, "fg", SIDEBAR_COLORS.accent, _$p));
+          return _el$6;
         }
       }), null);
-      _$insert(_el$4, _$createComponent(Show, {
+      _$insert(_el$5, _$createComponent(Show, {
         get when() {
           return expanded.expanded;
         },
@@ -292,25 +344,25 @@ function GitSidebar(props) {
               return snapshot().commits;
             },
             children: (commit) => (() => {
-              var _el$7 = _$createElement("box"), _el$8 = _$createElement("text"), _el$9 = _$createElement("text");
-              _$insertNode(_el$7, _el$8);
-              _$insertNode(_el$7, _el$9);
-              _$insert(_el$8, _$createComponent(FgSpan, {
-                get fg() {
+              var _el$8 = _$createElement("box"), _el$9 = _$createElement("text");
+              _$insertNode(_el$8, _el$9);
+              _$insert(_el$8, _$createComponent(CommitLine, {
+                get date() {
+                  return commit.date;
+                },
+                get hash() {
+                  return commit.hash;
+                },
+                get timeZone() {
+                  return props.timeZone;
+                },
+                get white() {
                   return theme.text.base;
                 },
-                get children() {
-                  return [" ", _$memo(() => formatCommitTime(commit.date))];
-                }
-              }), null);
-              _$insert(_el$8, _$createComponent(FgSpan, {
-                get fg() {
+                get accent() {
                   return SIDEBAR_COLORS.accent;
-                },
-                get children() {
-                  return [" ", _$memo(() => commit.hash)];
                 }
-              }), null);
+              }), _el$9);
               _$insert(_el$9, () => truncateSubject(commit.subject, SUBJECT_MAX_WIDTH));
               _$effect((_p$) => {
                 var _v$3 = TextAttributes.DIM, _v$4 = theme.text.base;
@@ -321,12 +373,12 @@ function GitSidebar(props) {
                 e: undefined,
                 t: undefined
               });
-              return _el$7;
+              return _el$8;
             })()
           });
         }
       }), null);
-      return _el$4;
+      return _el$5;
     })()
   });
 }
@@ -336,6 +388,9 @@ var REFRESH_DEBOUNCE_MS = 500;
 var STATUS_POLL_MS = 2000;
 var FULL_REFRESH_MS = 15000;
 var PLUGIN_COMMAND_GROUP = "Git history";
+function configuredTimeZone(options) {
+  return typeof options.timezone === "string" && options.timezone !== "" ? options.timezone : undefined;
+}
 var REFRESH_EVENT_TYPES = ["vcs.branch.updated", "filesystem.changed", "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted"];
 var tui_default = Plugin.define({
   id: "opencode-git-history",
@@ -372,6 +427,9 @@ var tui_default = Plugin.define({
       render: () => _$createComponent2(GitSidebar, {
         get snapshot() {
           return snapshot();
+        },
+        get timeZone() {
+          return configuredTimeZone(context.options);
         }
       })
     });

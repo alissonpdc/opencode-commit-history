@@ -32,8 +32,17 @@ function BranchLine(props: { snapshot: GitSnapshot; expanded: boolean; onToggle:
   );
 }
 
+function CommitLine(props: { date: string; hash: string; timeZone?: string; white: RGBA; accent: RGBA }) {
+  return (
+    <text>
+      <FgSpan fg={props.white}> {formatCommitTime(props.date, props.timeZone)}</FgSpan>
+      <FgSpan fg={props.accent}> {props.hash}</FgSpan>
+    </text>
+  );
+}
+
 /** Sidebar section: current branch (+ worktree when linked) and the last commits. */
-export function GitSidebar(props: { snapshot: GitSnapshot | null }) {
+export function GitSidebar(props: { snapshot: GitSnapshot | null; timeZone?: string }) {
   const context = usePlugin();
   const theme = context.theme;
   const [expanded, updateExpanded] = context.storage.store<ExpandedState>("expanded", {
@@ -52,10 +61,13 @@ export function GitSidebar(props: { snapshot: GitSnapshot | null }) {
             <For each={snapshot().commits}>
               {(commit) => (
                 <box>
-                  <text>
-                    <FgSpan fg={theme.text.base}> {formatCommitTime(commit.date)}</FgSpan>
-                    <FgSpan fg={SIDEBAR_COLORS.accent}> {commit.hash}</FgSpan>
-                  </text>
+                  <CommitLine
+                    date={commit.date}
+                    hash={commit.hash}
+                    timeZone={props.timeZone}
+                    white={theme.text.base}
+                    accent={SIDEBAR_COLORS.accent}
+                  />
                   <text attributes={TextAttributes.DIM} fg={theme.text.base}>
                     {truncateSubject(commit.subject, SUBJECT_MAX_WIDTH)}
                   </text>

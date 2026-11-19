@@ -38,8 +38,29 @@ Load it from GitHub through `cli.json` (the TUI-only plugin config):
 }
 ```
 
-Pin the tag (`#v0.1.0`) or omit it to track the default branch. Config changes
+Pin the tag (`#v0.2.0`) or omit it to track the default branch. Config changes
 apply without restarting OpenCode.
+
+### Options
+
+Pass plugin options with the object form:
+
+```json title="~/.config/opencode/cli.json"
+{
+  "plugins": [
+    {
+      "package": "github:alissonpdc/opencode-git-history#v0.2.0",
+      "options": {
+        "timezone": "America/Sao_Paulo"
+      }
+    }
+  ]
+}
+```
+
+| Option     | Type   | Default        | Description                                              |
+| ---------- | ------ | -------------- | -------------------------------------------------------- |
+| `timezone` | string | process locale | IANA timezone for commit timestamps (e.g. for UTC hosts) |
 
 Non-git directories render nothing, so the plugin is safe to keep enabled
 globally.

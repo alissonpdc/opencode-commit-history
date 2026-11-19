@@ -12,6 +12,11 @@ const STATUS_POLL_MS = 2_000;
 const FULL_REFRESH_MS = 15_000;
 const PLUGIN_COMMAND_GROUP = "Git history";
 
+/** IANA timezone for commit timestamps; set via plugin options in cli.json. */
+function configuredTimeZone(options: Readonly<Record<string, unknown>>): string | undefined {
+  return typeof options.timezone === "string" && options.timezone !== "" ? options.timezone : undefined;
+}
+
 /** Server events worth re-reading the repository state for. */
 const REFRESH_EVENT_TYPES = [
   "vcs.branch.updated",
@@ -61,7 +66,7 @@ export default Plugin.define({
 
     const unregisterSlot = context.ui.slot({
       append: "sidebar.content",
-      render: () => <GitSidebar snapshot={snapshot()} />,
+      render: () => <GitSidebar snapshot={snapshot()} timeZone={configuredTimeZone(context.options)} />,
     });
 
     return () => {
